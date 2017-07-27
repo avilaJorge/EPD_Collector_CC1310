@@ -209,6 +209,7 @@ static void processConfigResponse(ApiMac_mcpsDataInd_t *pDataInd);
 static void processTrackingResponse(ApiMac_mcpsDataInd_t *pDataInd);
 static void processToggleLedResponse(ApiMac_mcpsDataInd_t *pDataInd);
 static void processSensorData(ApiMac_mcpsDataInd_t *pDataInd);
+static void processIncomingImageData(ApiMac_mcpsDataInd_t *pDataInd);
 static Cllc_associated_devices_t *findDevice(ApiMac_sAddr_t *pAddr);
 static Cllc_associated_devices_t *findDeviceStatusBit(uint16_t mask, uint16_t statusBit);
 static uint8_t getMsduHandle(Smsgs_cmdIds_t msgType);
@@ -761,9 +762,19 @@ static void dataIndCB(ApiMac_mcpsDataInd_t *pDataInd)
             case Smsgs_cmdIds_sensorData:
                 processSensorData(pDataInd);
                 break;
+
             case Smsgs_cmdIds_rampdata:
                 Collector_statistics.sensorMessagesReceived++;
                 break;
+
+            case Smsgs_cmdIds_imageDataReq:
+                processIncomingImageData(pDataInd);
+                Util_setEvent(&Collector_events, COLLECTOR_UART_IMAGE_DATA_EVT);
+                break;
+
+            case Smsgs_cmdIds_imageDataReq:
+                processImageDataResponse(pDataInd);
+                break
 
             default:
                 /* Should not receive other messages */
