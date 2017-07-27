@@ -220,7 +220,11 @@ The <b>Sensor Ramp Data Message</b> is defined as:
     /* new data type for ramp data */
     Smsgs_cmdIds_rampdata = 8,
     /*! OAD mesages, sent/received from both collector and sensor */
-    Smsgs_cmdIds_oad = 9
+    Smsgs_cmdIds_oad = 9,
+    /* Image data request, sent from collector to sensor */
+    Smsgs_cmdIds_imageDataReq = 10,
+    /* Image data response, sent from sensor to collector */
+    Smsgs_cmdIds_imageDataReq = 11
  } Smsgs_cmdIds_t;
 
 /*!
