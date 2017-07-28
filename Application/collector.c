@@ -508,12 +508,36 @@ Collector_status_t Collector_sendToggleLedRequest(ApiMac_sAddr_t *pDstAddr)
  *  Public function defined in collector.h
  */
 Collector_status_t Collector_sendImageDataRequest(ApiMac_sAddr_t *pDstAddr) {
-    //TODO: Fill in this code
+    //TODO: Confirm this code works
     /* Assume destination device in invalide state until proven otherwise */
     Collector_status_t status = Collector_status_invalid_state;
 
     /* Are we in the right state? */
-    if(cllcState)
+    if(cllcState >= Cllc_states_started) {
+
+        Llc_deviceListItem_t item;
+
+        /* Is this device a known device? */
+        if(Csf_getDevice(pDstAddr, &item)) {
+
+            uint8_t buffer[SMSGS_IMAGE_DATA_RESPONSE_MSG_LEN];
+
+            /* Build the message */
+            buffer[0] = (uint8_t)Smsgs_cmdIds_imageDataReq;
+
+            sendMsg(Smsgs_cmdIds_imageDataReq, item.devInfo.shortAddress,
+                    item.capInfo.rxOnWhenIdle,
+                    SMSGS_IMAGE_DATA_RESPONSE_MSG_LEN,
+                    buffer);
+
+            status = Collector_status_success;
+        }
+        else {
+            status = Collector_status_deviceNotFound;
+        }
+
+        return(status);
+    }
 }
 
 /******************************************************************************
