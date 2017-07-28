@@ -213,7 +213,9 @@ extern Collector_status_t Collector_sendToggleLedRequest(
  * @param   pDstAddr - address of device to send message to
  *
  * @return  Collector_status_success, Collector_status_invalid_state
- *          or Collector_status_deviceNotFound
+ *          or Collector_status_deviceNotFound.  Returns
+ *          Collector_status_invalid_state if image data is already
+ *          being sent.
  */
 extern Collector_status_t Collector_sendImageDataRequest(
                 ApiMac_sAddr_t *pDstAddr);

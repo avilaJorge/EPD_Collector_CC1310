@@ -163,6 +163,9 @@
 #define ASSOC_TRACKING_RETRY    0x4000    /* Tracking Req retried */
 #define ASSOC_TRACKING_ERROR    0x8000    /* Tracking Req error */
 #define ASSOC_TRACKING_MASK     0xF000    /* Tracking mask  */
+
+/* Image Data Settings */
+#define IMAGE_DATA_PAYLOAD_LEN   32        /* Number of image data bytes to send in a packet */
 /******************************************************************************
  Global variables
  *****************************************************************************/
@@ -173,17 +176,20 @@ uint16_t Collector_events = 0;
 /*! Collector statistics */
 Collector_statistics_t Collector_statistics;
 
+/******************************************************************************
+ Local variables
+ *****************************************************************************/
+
 /* Image Data Information */
 extern unsigned char const imageData[];     /* Image Data Array */
 extern uint16_t imageDataLength;            /* Length of Image Data Array */
 static uint16_t imageDataPacketIndex = 0;   /* Used to keep track of packets sent */
-static uint8_t  imageDataPacketLength = 32; /* Number of image data bytes to send in a packet */
-static uint8_t  numImageDataPacekts =       /* Total number of packets to send */
-        imageDataLength / imageDataPacketLength + 1;
-
-/******************************************************************************
- Local variables
- *****************************************************************************/
+static uint8_t  numImageDataPackets =       /* Total number of packets to send (round up) */
+        (imageDataLength + IMAGE_DATA_PAYLOAD_LEN - 1) / IMAGE_DATA_PAYLOAD_LEN;
+static uint8_t  imageDataBuffer[IMAGE_DATA_PAYLOAD_LEN]; /* Image data buffer for sending packets */
+static Llc_deviceListItem_t currentImageDataDevice = NULL;  /* The current device we are
+                                                             * sending image data to.
+                                                             */
 
 static void *sem;
 
@@ -226,7 +232,9 @@ static bool sendMsg(Smsgs_cmdIds_t type, uint16_t dstShortAddr, bool rxOnIdle,
                     uint8_t *pData);
 static void generateConfigRequests(void);
 static void generateTrackingRequests(void);
+static void generateImageDataPacket(Cllc_associated_devices_t *pDev);
 static void sendTrackingRequest(Cllc_associated_devices_t *pDev);
+static void sendImageData(void); // XXX: Function protoype for function that sends image data
 static void commStatusIndCB(ApiMac_mlmeCommStatusInd_t *pCommStatusInd);
 static void pollIndCB(ApiMac_mlmePollInd_t *pPollInd);
 static void processDataRetry(ApiMac_sAddr_t *pAddr);
@@ -373,11 +381,23 @@ void Collector_process(void)
         Util_clearEvent(&Collector_events, COLLECTOR_TRACKING_TIMEOUT_EVT);
     }
 
-    // TODO: send image data packet even should be triggered here
+    // TODO: send image data packet event should be triggered here
     /* Is it time to send an image data packet? */
     if(Collector_events & COLLECTOR_SEND_IMAGE_DATA_EVT) {
 
+        /* Are there any more packets to send? */
+        if(imageDataPacketIndex < numImageDataPacekts) {
 
+            /* Send image data packet */
+            sendImageData();
+
+        } else {
+
+            /* No more packets to send? Reset index, clear event, and clear device info */
+            imageDataPacketIndex = 0;
+            Util_clearEvent(&Collector_events, COLLECTOR_SEND_IMAGE_DATA_EVT);
+            currentImageDataDevice = NULL;
+        }
     }
 
     /*
@@ -524,16 +544,17 @@ Collector_status_t Collector_sendToggleLedRequest(ApiMac_sAddr_t *pDstAddr)
  */
 Collector_status_t Collector_sendImageDataRequest(ApiMac_sAddr_t *pDstAddr) {
     //TODO: Confirm this code works
-    /* Assume destination device in invalide state until proven otherwise */
+    /* Assume destination device in invalid state until proven otherwise */
     Collector_status_t status = Collector_status_invalid_state;
 
     /* Are we in the right state? */
-    if(cllcState >= Cllc_states_started) {
-
-        Llc_deviceListItem_t item;
+    /* We also want to make sure image data isn't already being sent */
+    if(cllcState >= Cllc_states_started &&
+            !(Collector_events & COLLECTOR_SEND_IMAGE_DATA_EVT)) {;
 
         /* Is this device a known device? */
-        if(Csf_getDevice(pDstAddr, &item)) {
+        /* If so, save the device information in our local (file scope) variable */
+        if(Csf_getDevice(pDstAddr, &currentImageDataDevice)) {
 
             uint8_t buffer[SMSGS_IMAGE_DATA_REQUEST_MSG_LEN];
 
@@ -1633,6 +1654,34 @@ static void sendTrackingRequest(Cllc_associated_devices_t *pDev)
         devAddr.addr.shortAddr = pDev->shortAddr;
         processDataRetry(&devAddr);
     }
+}
+
+/*!
+ * @brief   Generates and sends image data packets
+ *
+ */
+static void sendImageData(void) {
+    //XXX: sendImageData function
+
+    uint8_t cmdId = Smsgs_cmdIds_imageData;
+
+    /* Set imageDataBuffer to all zeros */
+    memset(imageDataBuffer, 0, IMAGE_DATA_PAYLOAD_LEN);
+    /* Get a pointer to the start of the current payload */
+    uint8_t *data = imageData + (imageDataPacketIndex * IMAGE_DATA_PAYLOAD_LEN);
+    /* Copy image data into payload buffer */
+    memcpy(imageDataBuffer, imageData, IMAGE_DATA_PAYLOAD_LEN);
+
+    /* Send the image data message and check if it succeeds */
+    if((sendMsg(Smsgs_cmdIds_imageData,
+                currentImageDataDevice.devInfo.shortAddress,
+                currentImageDataDevice.capInfo.rxOnWhenIdle,
+                (IMAGE_DATA_PAYLOAD_LEN),
+                imageDataBuffer)) == true) {
+
+        /* Increment packet index after sending data */
+        imageDataPacketIndex++;
+    } /* if sendMsg fails this packet will be sent again */
 }
 
 /*!

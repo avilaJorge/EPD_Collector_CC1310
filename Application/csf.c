@@ -368,6 +368,10 @@ void Csf_processEvents(void)
                 {
                     firstDev.addrMode = ApiMac_addrType_short;
                     Collector_sendToggleLedRequest(&firstDev);
+
+                    /* Send Image Data to first Device */
+                    //TODO: For now we will only send to the first device
+                    Collector_sendImageDataRequest(&firstDev);
                 }
 #endif
             }
