@@ -70,8 +70,7 @@ extern "C"
 #define COLLECTOR_TRACKING_TIMEOUT_EVT 0x0002
 /*! Event ID - Generate Configs Event */
 #define COLLECTOR_CONFIG_EVT 0x0004
-/*! Event ID - Send Image data to MSP432 via UART */
-#define COLLECTOR_UART_IMAGE_DATA_EVT 0x0008
+
 
 /*! Collector Status Values */
 typedef enum
