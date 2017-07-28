@@ -224,7 +224,7 @@ The <b>Sensor Ramp Data Message</b> is defined as:
     /* Image data request, sent from collector to sensor */
     Smsgs_cmdIds_imageDataReq = 10,
     /* Image data response, sent from sensor to collector */
-    Smsgs_cmdIds_imageDataReq = 11
+    Smsgs_cmdIds_imageDataRsp = 11
  } Smsgs_cmdIds_t;
 
 /*!

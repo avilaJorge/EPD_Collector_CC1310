@@ -209,7 +209,7 @@ static void processConfigResponse(ApiMac_mcpsDataInd_t *pDataInd);
 static void processTrackingResponse(ApiMac_mcpsDataInd_t *pDataInd);
 static void processToggleLedResponse(ApiMac_mcpsDataInd_t *pDataInd);
 static void processSensorData(ApiMac_mcpsDataInd_t *pDataInd);
-static void processOutgoingImageData(ApiMac_mcpsDataInd_t *pDataInd);
+static void processImageDataResponse(ApiMac_mcpsDataInd_t *pDataInd);
 static Cllc_associated_devices_t *findDevice(ApiMac_sAddr_t *pAddr);
 static Cllc_associated_devices_t *findDeviceStatusBit(uint16_t mask, uint16_t statusBit);
 static uint8_t getMsduHandle(Smsgs_cmdIds_t msgType);
@@ -502,6 +502,20 @@ Collector_status_t Collector_sendToggleLedRequest(ApiMac_sAddr_t *pDstAddr)
     return(status);
 }
 
+/*!
+ *  Build and send the image data request to a destination device
+ *
+ *  Public function defined in collector.h
+ */
+Collector_status_t Collector_sendImageDataRequest(ApiMac_sAddr_t *pDstAddr) {
+    //TODO: Fill in this code
+    /* Assume destination device in invalide state until proven otherwise */
+    Collector_status_t status = Collector_status_invalid_state;
+
+    /* Are we in the right state? */
+    if(cllcState)
+}
+
 /******************************************************************************
  Local Functions
  *****************************************************************************/
@@ -767,12 +781,7 @@ static void dataIndCB(ApiMac_mcpsDataInd_t *pDataInd)
                 Collector_statistics.sensorMessagesReceived++;
                 break;
 
-            case Smsgs_cmdIds_imageDataReq:
-                processOutgoingImageData(pDataInd);
-
-                break;
-
-            case Smsgs_cmdIds_imageDataReq:
+            case Smsgs_cmdIds_imageDataRsp:
                 processImageDataResponse(pDataInd);
                 break
 
@@ -786,11 +795,12 @@ static void dataIndCB(ApiMac_mcpsDataInd_t *pDataInd)
 /*!
  * @brief      Process the outgoing image event
  */
-static void processOutgoingImageData(void) {
-
+static void processImageDataResponse(ApiMac_mcpsDataInd_t *pDataInd) {
+    // TODO: Fill in code for this function
 
 
 }
+
 
 /*!
  * @brief      Process the start event

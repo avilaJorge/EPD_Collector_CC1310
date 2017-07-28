@@ -205,6 +205,17 @@ extern void Collector_updateStats( void );
 extern Collector_status_t Collector_sendToggleLedRequest(
                 ApiMac_sAddr_t *pDstAddr);
 
+/*!
+ * @brief   Process request to begin sending image data to sensor
+ *
+ * @param   pDstAddr - address of device to send message to
+ *
+ * @return  Collector_status_success, Collector_status_invalid_state
+ *          or Collector_status_deviceNotFound
+ */
+extern Collector_status_t Collector_sendImageDataRequest(
+                ApiMac_sAddr_t *pDstAddr);
+
 #ifdef POWER_MEAS
 /*! Generate data of fixed size for power measurement testing */
 extern void generateIndirectRampMsg(void);
