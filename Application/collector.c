@@ -173,6 +173,14 @@ uint16_t Collector_events = 0;
 /*! Collector statistics */
 Collector_statistics_t Collector_statistics;
 
+/* Image Data Information */
+extern unsigned char const imageData[];     /* Image Data Array */
+extern uint16_t imageDataLength;            /* Length of Image Data Array */
+static uint16_t imageDataPacketIndex = 0;   /* Used to keep track of packets sent */
+static uint8_t  imageDataPacketLength = 32; /* Number of image data bytes to send in a packet */
+static uint8_t  numImageDataPacekts =       /* Total number of packets to send */
+        imageDataLength / imageDataPacketLength + 1;
+
 /******************************************************************************
  Local variables
  *****************************************************************************/
@@ -365,6 +373,13 @@ void Collector_process(void)
         Util_clearEvent(&Collector_events, COLLECTOR_TRACKING_TIMEOUT_EVT);
     }
 
+    // TODO: send image data packet even should be triggered here
+    /* Is it time to send an image data packet? */
+    if(Collector_events & COLLECTOR_SEND_IMAGE_DATA_EVT) {
+
+
+    }
+
     /*
      The generate a config request for all associated devices that need one
      */
@@ -520,14 +535,14 @@ Collector_status_t Collector_sendImageDataRequest(ApiMac_sAddr_t *pDstAddr) {
         /* Is this device a known device? */
         if(Csf_getDevice(pDstAddr, &item)) {
 
-            uint8_t buffer[SMSGS_IMAGE_DATA_RESPONSE_MSG_LEN];
+            uint8_t buffer[SMSGS_IMAGE_DATA_REQUEST_MSG_LEN];
 
             /* Build the message */
             buffer[0] = (uint8_t)Smsgs_cmdIds_imageDataReq;
 
             sendMsg(Smsgs_cmdIds_imageDataReq, item.devInfo.shortAddress,
                     item.capInfo.rxOnWhenIdle,
-                    SMSGS_IMAGE_DATA_RESPONSE_MSG_LEN,
+                    SMSGS_IMAGE_DATA_REQUEST_MSG_LEN,
                     buffer);
 
             status = Collector_status_success;
@@ -806,6 +821,7 @@ static void dataIndCB(ApiMac_mcpsDataInd_t *pDataInd)
                 break;
 
             case Smsgs_cmdIds_imageDataRsp:
+                //TODO: Check that message actually comes here
                 processImageDataResponse(pDataInd);
                 break
 
@@ -815,16 +831,6 @@ static void dataIndCB(ApiMac_mcpsDataInd_t *pDataInd)
         }
     }
 }
-
-/*!
- * @brief      Process the outgoing image event
- */
-static void processImageDataResponse(ApiMac_mcpsDataInd_t *pDataInd) {
-    // TODO: Fill in code for this function
-
-
-}
-
 
 /*!
  * @brief      Process the start event
@@ -1006,6 +1012,29 @@ static void processToggleLedResponse(ApiMac_mcpsDataInd_t *pDataInd)
         Csf_toggleResponseReceived(&pDataInd->srcAddr, ledState);
     }
 }
+
+/*!
+ * @brief      Process the outgoing image event
+ */
+static void processImageDataResponse(ApiMac_mcpsDataInd_t *pDataInd) {
+    // TODO: Fill in code for this function
+    /* Make sure the message is the correct size */
+    if(pDataInd->msdu.len == SMSGS_IMAGE_DATA_RESPONSE_MSG_LEN) {
+
+        bool sensorReady;
+        uint8_t *pBuf = pDataInd->msdu.p;
+
+        /* Skip past the command ID */
+        pBuf++;
+
+        sensorReady = (bool)*pBuf;
+
+        /* Set send image data event which will send packets until completion */
+        Util_setEvent(&Collector_events, COLLECTOR_SEND_IMAGE_DATA_EVT);
+    }
+
+}
+
 
 /*!
  * @brief      Process the Sensor Data message.

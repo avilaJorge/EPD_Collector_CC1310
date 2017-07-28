@@ -70,6 +70,8 @@ extern "C"
 #define COLLECTOR_TRACKING_TIMEOUT_EVT 0x0002
 /*! Event ID - Generate Configs Event */
 #define COLLECTOR_CONFIG_EVT 0x0004
+/*! Event ID - Send Image data packets until completion */
+#define COLLECTOR_SEND_IMAGE_DATA_EVT 0x0008
 
 
 /*! Collector Status Values */
