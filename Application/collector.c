@@ -560,6 +560,7 @@ Collector_status_t Collector_sendImageDataRequest(ApiMac_sAddr_t *pDstAddr) {
 
             /* Build the message */
             buffer[0] = (uint8_t)Smsgs_cmdIds_imageDataReq;
+            buffer[1] = numImageDataPackets;
 
             sendMsg(Smsgs_cmdIds_imageDataReq, item.devInfo.shortAddress,
                     item.capInfo.rxOnWhenIdle,
