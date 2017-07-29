@@ -184,7 +184,7 @@ Collector_statistics_t Collector_statistics;
 extern unsigned char const imageData[];     /* Image Data Array */
 extern uint16_t imageDataLength;            /* Length of Image Data Array */
 static uint16_t imageDataPacketIndex = 0;   /* Used to keep track of packets sent */
-static uint8_t  numImageDataPackets =       /* Total number of packets to send (round up) */
+static uint16_t  numImageDataPackets =       /* Total number of packets to send (round up) */
         (imageDataLength + IMAGE_DATA_PAYLOAD_LEN - 1) / IMAGE_DATA_PAYLOAD_LEN;
 static uint8_t  imageDataBuffer[IMAGE_DATA_PAYLOAD_LEN]; /* Image data buffer for sending packets */
 static Llc_deviceListItem_t currentImageDataDevice = NULL;  /* The current device we are
