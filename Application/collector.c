@@ -89,6 +89,9 @@
 /* Ramp data request marker for the MSDU handle */
 #define RAMP_DATA_MSDU_HANDLE 0x20
 
+/* Send Image data request marker for MSDU handle */
+#define APP_IMAGE_MSDU_HANDLE 0x60
+
 /* Default configuration frame control */
 #define CONFIG_FRAME_CONTROL (Smsgs_dataFields_tempSensor | \
                               Smsgs_dataFields_lightSensor | \
@@ -101,10 +104,10 @@
 /* MAC Indirect Persistent Timeout */
 #define INDIRECT_PERSISTENT_TIME 750
 /* Default configuration reporting interval, in milliseconds */
-#define CONFIG_REPORTING_INTERVAL 90000
+#define CONFIG_REPORTING_INTERVAL 1000//90000
 
 /* Default configuration polling interval, in milliseconds */
-#define CONFIG_POLLING_INTERVAL 6000
+#define CONFIG_POLLING_INTERVAL 100//6000
 
 /* Delay for config request retry in busy network */
 #define CONFIG_DELAY 1000
@@ -165,7 +168,8 @@
 #define ASSOC_TRACKING_MASK     0xF000    /* Tracking mask  */
 
 /* Image Data Settings */
-#define IMAGE_DATA_PAYLOAD_LEN   32        /* Number of image data bytes to send in a packet */
+#define IMAGE_DATA_PAYLOAD_LEN   101        /* Number of image data bytes to send in a packet plus cmdId*/
+#define NUM_IMAGE_DATA_PACKETS   469
 /******************************************************************************
  Global variables
  *****************************************************************************/
@@ -183,11 +187,9 @@ Collector_statistics_t Collector_statistics;
 /* Image Data Information */
 extern unsigned char const imageData[];     /* Image Data Array */
 extern uint16_t imageDataLength;            /* Length of Image Data Array */
-static uint16_t imageDataPacketIndex = 0;   /* Used to keep track of packets sent */
-static uint16_t  numImageDataPackets =       /* Total number of packets to send (round up) */
-        (imageDataLength + IMAGE_DATA_PAYLOAD_LEN - 1) / IMAGE_DATA_PAYLOAD_LEN;
-static uint8_t  imageDataBuffer[IMAGE_DATA_PAYLOAD_LEN]; /* Image data buffer for sending packets */
-static Llc_deviceListItem_t currentImageDataDevice = NULL;  /* The current device we are
+uint16_t imageDataPacketIndex = 0;   /* Used to keep track of packets sent */
+uint8_t  imageDataBuffer[IMAGE_DATA_PAYLOAD_LEN]; /* Image data buffer for sending packets */
+static Llc_deviceListItem_t currentImageDataDevice;  /* The current device we are
                                                              * sending image data to.
                                                              */
 
@@ -232,7 +234,6 @@ static bool sendMsg(Smsgs_cmdIds_t type, uint16_t dstShortAddr, bool rxOnIdle,
                     uint8_t *pData);
 static void generateConfigRequests(void);
 static void generateTrackingRequests(void);
-static void generateImageDataPacket(Cllc_associated_devices_t *pDev);
 static void sendTrackingRequest(Cllc_associated_devices_t *pDev);
 static void sendImageData(void); // XXX: Function protoype for function that sends image data
 static void commStatusIndCB(ApiMac_mlmeCommStatusInd_t *pCommStatusInd);
@@ -386,17 +387,18 @@ void Collector_process(void)
     if(Collector_events & COLLECTOR_SEND_IMAGE_DATA_EVT) {
 
         /* Are there any more packets to send? */
-        if(imageDataPacketIndex < numImageDataPacekts) {
+        if(imageDataPacketIndex < NUM_IMAGE_DATA_PACKETS) {
 
             /* Send image data packet */
             sendImageData();
+            /* Clear the event until we receive dataCnfCB */
+            Util_clearEvent(&Collector_events, COLLECTOR_SEND_IMAGE_DATA_EVT);
 
         } else {
 
             /* No more packets to send? Reset index, clear event, and clear device info */
             imageDataPacketIndex = 0;
             Util_clearEvent(&Collector_events, COLLECTOR_SEND_IMAGE_DATA_EVT);
-            currentImageDataDevice = NULL;
         }
     }
 
@@ -560,10 +562,10 @@ Collector_status_t Collector_sendImageDataRequest(ApiMac_sAddr_t *pDstAddr) {
 
             /* Build the message */
             buffer[0] = (uint8_t)Smsgs_cmdIds_imageDataReq;
-            buffer[1] = numImageDataPackets;
 
-            sendMsg(Smsgs_cmdIds_imageDataReq, item.devInfo.shortAddress,
-                    item.capInfo.rxOnWhenIdle,
+            sendMsg(Smsgs_cmdIds_imageDataReq,
+                    currentImageDataDevice.devInfo.shortAddress,
+                    currentImageDataDevice.capInfo.rxOnWhenIdle,
                     SMSGS_IMAGE_DATA_REQUEST_MSG_LEN,
                     buffer);
 
@@ -572,9 +574,8 @@ Collector_status_t Collector_sendImageDataRequest(ApiMac_sAddr_t *pDstAddr) {
         else {
             status = Collector_status_deviceNotFound;
         }
-
-        return(status);
     }
+    return(status);
 }
 
 /******************************************************************************
@@ -711,8 +712,12 @@ static void dataCnfCB(ApiMac_mcpsDataCnf_t *pDataCnf)
     /* Make sure the message came from the app */
     if(pDataCnf->msduHandle & APP_MARKER_MSDU_HANDLE)
     {
+        //XXX: dataCnfCB for my send image function
         /* What message type was the original request? */
-        if(pDataCnf->msduHandle & APP_CONFIG_MSDU_HANDLE)
+        if(pDataCnf->msduHandle & APP_IMAGE_MSDU_HANDLE) {
+            Util_setEvent(&Collector_events, COLLECTOR_SEND_IMAGE_DATA_EVT);
+        }
+        else if(pDataCnf->msduHandle & APP_CONFIG_MSDU_HANDLE)
         {
             /* Config Request */
             Cllc_associated_devices_t *pDev;
@@ -845,7 +850,7 @@ static void dataIndCB(ApiMac_mcpsDataInd_t *pDataInd)
             case Smsgs_cmdIds_imageDataRsp:
                 //TODO: Check that message actually comes here
                 processImageDataResponse(pDataInd);
-                break
+                break;
 
             default:
                 /* Should not receive other messages */
@@ -1287,6 +1292,10 @@ static uint8_t getMsduHandle(Smsgs_cmdIds_t msgType)
     {
         msduHandle |= APP_CONFIG_MSDU_HANDLE;
     }
+    if(msgType == Smsgs_cmdIds_imageData)
+    {
+        msduHandle |= APP_IMAGE_MSDU_HANDLE;
+    }
 
     return (msduHandle);
 }
@@ -1664,14 +1673,14 @@ static void sendTrackingRequest(Cllc_associated_devices_t *pDev)
 static void sendImageData(void) {
     //XXX: sendImageData function
 
-    uint8_t cmdId = Smsgs_cmdIds_imageData;
-
     /* Set imageDataBuffer to all zeros */
     memset(imageDataBuffer, 0, IMAGE_DATA_PAYLOAD_LEN);
-    /* Get a pointer to the start of the current payload */
-    uint8_t *data = imageData + (imageDataPacketIndex * IMAGE_DATA_PAYLOAD_LEN);
+    /* Set the command ID */
+    imageDataBuffer[0] = Smsgs_cmdIds_imageData;
     /* Copy image data into payload buffer */
-    memcpy(imageDataBuffer, imageData, IMAGE_DATA_PAYLOAD_LEN);
+    memcpy(imageDataBuffer + 1,
+           imageData + (imageDataPacketIndex * (IMAGE_DATA_PAYLOAD_LEN - 1)),
+           IMAGE_DATA_PAYLOAD_LEN);
 
     /* Send the image data message and check if it succeeds */
     if((sendMsg(Smsgs_cmdIds_imageData,

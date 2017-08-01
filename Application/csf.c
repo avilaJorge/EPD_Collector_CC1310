@@ -367,7 +367,7 @@ void Csf_processEvents(void)
                 if(firstDev.addr.shortAddr != CSF_INVALID_SHORT_ADDR)
                 {
                     firstDev.addrMode = ApiMac_addrType_short;
-                    Collector_sendToggleLedRequest(&firstDev);
+                    //Collector_sendToggleLedRequest(&firstDev);
 
                     /* Send Image Data to first Device */
                     //TODO: For now we will only send to the first device
