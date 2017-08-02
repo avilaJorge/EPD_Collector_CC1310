@@ -169,7 +169,7 @@
 
 /* Image Data Settings */
 #define IMAGE_DATA_PAYLOAD_LEN   101        /* Number of image data bytes to send in a packet plus cmdId*/
-#define NUM_IMAGE_DATA_PACKETS   469
+#define NUM_IMAGE_DATA_PACKETS   150
 /******************************************************************************
  Global variables
  *****************************************************************************/
@@ -391,6 +391,8 @@ void Collector_process(void)
 
             /* Send image data packet */
             sendImageData();
+            /* Increment packet index after sending data */
+            imageDataPacketIndex++;
             /* Clear the event until we receive dataCnfCB */
             Util_clearEvent(&Collector_events, COLLECTOR_SEND_IMAGE_DATA_EVT);
 
@@ -1689,8 +1691,6 @@ static void sendImageData(void) {
                 (IMAGE_DATA_PAYLOAD_LEN),
                 imageDataBuffer)) == true) {
 
-        /* Increment packet index after sending data */
-        imageDataPacketIndex++;
     } /* if sendMsg fails this packet will be sent again */
 }
 
