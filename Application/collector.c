@@ -78,7 +78,7 @@
 #define NON_BEACON_ORDER      15
 
 /* Default MSDU Handle rollover */
-#define MSDU_HANDLE_MAX 0x1F
+#define MSDU_HANDLE_MAX 0x0F//0x1F
 
 /* App marker in MSDU handle */
 #define APP_MARKER_MSDU_HANDLE 0x80
@@ -90,7 +90,7 @@
 #define RAMP_DATA_MSDU_HANDLE 0x20
 
 /* Send Image data request marker for MSDU handle */
-#define APP_IMAGE_MSDU_HANDLE 0x60
+#define APP_IMAGE_MSDU_HANDLE 0x10
 
 /* Default configuration frame control */
 #define CONFIG_FRAME_CONTROL (Smsgs_dataFields_tempSensor | \
@@ -391,15 +391,13 @@ void Collector_process(void)
 
             /* Send image data packet */
             sendImageData();
-            /* Increment packet index after sending data */
-            imageDataPacketIndex++;
+
             /* Clear the event until we receive dataCnfCB */
             Util_clearEvent(&Collector_events, COLLECTOR_SEND_IMAGE_DATA_EVT);
 
         } else {
 
-            /* No more packets to send? Reset index, clear event, and clear device info */
-            imageDataPacketIndex = 0;
+            /* No more packets to send? Clear event. */
             Util_clearEvent(&Collector_events, COLLECTOR_SEND_IMAGE_DATA_EVT);
         }
     }
@@ -562,6 +560,9 @@ Collector_status_t Collector_sendImageDataRequest(ApiMac_sAddr_t *pDstAddr) {
 
             uint8_t buffer[SMSGS_IMAGE_DATA_REQUEST_MSG_LEN];
 
+            /* First reset the packet index */
+            imageDataPacketIndex = 0;
+
             /* Build the message */
             buffer[0] = (uint8_t)Smsgs_cmdIds_imageDataReq;
 
@@ -717,7 +718,11 @@ static void dataCnfCB(ApiMac_mcpsDataCnf_t *pDataCnf)
         //XXX: dataCnfCB for my send image function
         /* What message type was the original request? */
         if(pDataCnf->msduHandle & APP_IMAGE_MSDU_HANDLE) {
-            Util_setEvent(&Collector_events, COLLECTOR_SEND_IMAGE_DATA_EVT);
+            /* If packet index within bounds continue sending image data */
+            if(imageDataPacketIndex < NUM_IMAGE_DATA_PACKETS) {
+                Util_setEvent(&Collector_events,
+                              COLLECTOR_SEND_IMAGE_DATA_EVT);
+            }
         }
         else if(pDataCnf->msduHandle & APP_CONFIG_MSDU_HANDLE)
         {
@@ -1676,7 +1681,7 @@ static void sendImageData(void) {
     //XXX: sendImageData function
 
     /* Set imageDataBuffer to all zeros */
-    memset(imageDataBuffer, 0, IMAGE_DATA_PAYLOAD_LEN);
+    //memset(imageDataBuffer, 0, IMAGE_DATA_PAYLOAD_LEN);
     /* Set the command ID */
     imageDataBuffer[0] = Smsgs_cmdIds_imageData;
     /* Copy image data into payload buffer */
@@ -1690,6 +1695,9 @@ static void sendImageData(void) {
                 currentImageDataDevice.capInfo.rxOnWhenIdle,
                 (IMAGE_DATA_PAYLOAD_LEN),
                 imageDataBuffer)) == true) {
+
+        /* Increment packet index after sending data */
+        imageDataPacketIndex++;
 
     } /* if sendMsg fails this packet will be sent again */
 }
