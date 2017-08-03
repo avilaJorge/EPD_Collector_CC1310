@@ -235,7 +235,7 @@ static bool sendMsg(Smsgs_cmdIds_t type, uint16_t dstShortAddr, bool rxOnIdle,
 static void generateConfigRequests(void);
 static void generateTrackingRequests(void);
 static void sendTrackingRequest(Cllc_associated_devices_t *pDev);
-static void sendImageData(void); // XXX: Function protoype for function that sends image data
+static bool sendImageData(void); // XXX: Function protoype for function that sends image data
 static void commStatusIndCB(ApiMac_mlmeCommStatusInd_t *pCommStatusInd);
 static void pollIndCB(ApiMac_mlmePollInd_t *pPollInd);
 static void processDataRetry(ApiMac_sAddr_t *pAddr);
@@ -383,18 +383,21 @@ void Collector_process(void)
     }
 
     // TODO: send image data packet event should be triggered here
+    // XXX:
     /* Is it time to send an image data packet? */
     if(Collector_events & COLLECTOR_SEND_IMAGE_DATA_EVT) {
 
         /* Are there any more packets to send? */
         if(imageDataPacketIndex < NUM_IMAGE_DATA_PACKETS) {
 
-            /* Send image data packet */
-            sendImageData();
-
-            /* Clear the event until we receive dataCnfCB */
-            Util_clearEvent(&Collector_events, COLLECTOR_SEND_IMAGE_DATA_EVT);
-
+            /* Send image data packet and check if it succeeds */
+            if(sendImageData() == true) {
+                /* If it does, clear the event until we receive dataCnfCB */
+                Util_clearEvent(&Collector_events, COLLECTOR_SEND_IMAGE_DATA_EVT);
+            } else {
+                /* If it does not, reset the send event */
+                Util_setEvent(&Collector_events, COLLECTOR_SEND_IMAGE_DATA_EVT);
+            }
         } else {
 
             /* No more packets to send? Clear event. */
@@ -724,7 +727,8 @@ static void dataCnfCB(ApiMac_mcpsDataCnf_t *pDataCnf)
                               COLLECTOR_SEND_IMAGE_DATA_EVT);
             }
         }
-        else if(pDataCnf->msduHandle & APP_CONFIG_MSDU_HANDLE)
+
+        if(pDataCnf->msduHandle & APP_CONFIG_MSDU_HANDLE)
         {
             /* Config Request */
             Cllc_associated_devices_t *pDev;
@@ -1299,6 +1303,8 @@ static uint8_t getMsduHandle(Smsgs_cmdIds_t msgType)
     {
         msduHandle |= APP_CONFIG_MSDU_HANDLE;
     }
+    //XXX:
+    /* Add the image data type bit */
     if(msgType == Smsgs_cmdIds_imageData)
     {
         msduHandle |= APP_IMAGE_MSDU_HANDLE;
@@ -1676,9 +1682,12 @@ static void sendTrackingRequest(Cllc_associated_devices_t *pDev)
 /*!
  * @brief   Generates and sends image data packets
  *
+ * @return  true if packet sent, false otherwise
  */
-static void sendImageData(void) {
+static bool sendImageData(void) {
     //XXX: sendImageData function
+
+    bool packetSent = false;
 
     /* Set imageDataBuffer to all zeros */
     //memset(imageDataBuffer, 0, IMAGE_DATA_PAYLOAD_LEN);
@@ -1690,16 +1699,20 @@ static void sendImageData(void) {
            IMAGE_DATA_PAYLOAD_LEN);
 
     /* Send the image data message and check if it succeeds */
-    if((sendMsg(Smsgs_cmdIds_imageData,
-                currentImageDataDevice.devInfo.shortAddress,
-                currentImageDataDevice.capInfo.rxOnWhenIdle,
-                (IMAGE_DATA_PAYLOAD_LEN),
-                imageDataBuffer)) == true) {
+    packetSent = sendMsg(Smsgs_cmdIds_imageData,
+                         currentImageDataDevice.devInfo.shortAddress,
+                         currentImageDataDevice.capInfo.rxOnWhenIdle,
+                         (IMAGE_DATA_PAYLOAD_LEN),
+                         imageDataBuffer);
+
+    if(packetSent) {
 
         /* Increment packet index after sending data */
         imageDataPacketIndex++;
 
     } /* if sendMsg fails this packet will be sent again */
+
+    return packetSent;
 }
 
 /*!
