@@ -169,7 +169,7 @@
 
 /* Image Data Settings */
 #define IMAGE_DATA_PAYLOAD_LEN   101        /* Number of image data bytes to send in a packet plus cmdId*/
-#define NUM_IMAGE_DATA_PACKETS   150
+#define NUM_IMAGE_DATA_PACKETS   300
 /******************************************************************************
  Global variables
  *****************************************************************************/
@@ -183,10 +183,6 @@ Collector_statistics_t Collector_statistics;
 /******************************************************************************
  Local variables
  *****************************************************************************/
-
-/* Image Data Information */
-extern unsigned char const imageData[];     /* Image Data Array */
-extern uint16_t imageDataLength;            /* Length of Image Data Array */
 uint16_t imageDataPacketIndex = 0;   /* Used to keep track of packets sent */
 uint8_t  imageDataBuffer[IMAGE_DATA_PAYLOAD_LEN]; /* Image data buffer for sending packets */
 static Llc_deviceListItem_t currentImageDataDevice;  /* The current device we are
@@ -240,6 +236,7 @@ static void commStatusIndCB(ApiMac_mlmeCommStatusInd_t *pCommStatusInd);
 static void pollIndCB(ApiMac_mlmePollInd_t *pPollInd);
 static void processDataRetry(ApiMac_sAddr_t *pAddr);
 static void processConfigRetry(void);
+static uint8_t getRedBarImageData();
 
 #ifdef POWER_MEAS
 void generateIndirectRampMsg(void);
@@ -1689,14 +1686,17 @@ static bool sendImageData(void) {
 
     bool packetSent = false;
 
-    /* Set imageDataBuffer to all zeros */
-    //memset(imageDataBuffer, 0, IMAGE_DATA_PAYLOAD_LEN);
     /* Set the command ID */
     imageDataBuffer[0] = Smsgs_cmdIds_imageData;
     /* Copy image data into payload buffer */
-    memcpy(imageDataBuffer + 1,
-           imageData + (imageDataPacketIndex * (IMAGE_DATA_PAYLOAD_LEN - 1)),
-           IMAGE_DATA_PAYLOAD_LEN);
+    //memcpy(imageDataBuffer + 1,
+    //       imageData + (imageDataPacketIndex * (IMAGE_DATA_PAYLOAD_LEN - 1)),
+    //       IMAGE_DATA_PAYLOAD_LEN);
+
+    int i;
+    for(i = 1; i <= IMAGE_DATA_PAYLOAD_LEN; i++) {
+        imageDataBuffer[i] = getRedBarImageData();
+    }
 
     /* Send the image data message and check if it succeeds */
     packetSent = sendMsg(Smsgs_cmdIds_imageData,
@@ -1810,4 +1810,41 @@ static void processConfigRetry(void)
         /* Set config event */
         Csf_setConfigClock(CONFIG_DELAY);
     }
+}
+
+static uint8_t getRedBarImageData() {
+
+    static uint16_t row = 1;
+    static uint8_t index = 1;
+    static bool blackData = true;
+    uint8_t byte = 0;
+
+    if(row > 600) {
+        row = 1;
+        index = 1;
+        blackData = true;
+    } else {
+
+        if(index > 50) {
+            row++;
+            index = 1;
+        } else {
+            index++;
+        }
+
+        if(row > 300) {
+            blackData = false;
+        }
+
+        if(blackData) {
+            if((row >= 95 && row <= 119) || (row >= 181 && row <= 205)) {
+                byte = 0xFF;
+            }
+        } else {
+            if(row >= 120 && row <= 180) {
+                byte = 0xFF;
+            }
+        }
+    }
+    return byte;
 }
