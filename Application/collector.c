@@ -1841,7 +1841,7 @@ static uint8_t getRedBarImageData() {
                 byte = 0xFF;
             }
         } else {
-            if(row >= 120 && row <= 180) {
+            if(row >= (300 + 120) && row <= (300 + 180)) {
                 byte = 0xFF;
             }
         }
