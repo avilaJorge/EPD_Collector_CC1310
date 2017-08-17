@@ -1828,8 +1828,6 @@ static uint8_t getRedBarImageData() {
         if(index > 50) {
             row++;
             index = 1;
-        } else {
-            index++;
         }
 
         if(row > 300) {
@@ -1845,6 +1843,7 @@ static uint8_t getRedBarImageData() {
                 byte = 0xFF;
             }
         }
+        index++;
     }
     return byte;
 }
