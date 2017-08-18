@@ -1823,27 +1823,27 @@ static uint8_t getRedBarImageData() {
         row = 1;
         index = 1;
         blackData = true;
-    } else {
-
-        if(index > 50) {
-            row++;
-            index = 1;
-        }
-
-        if(row > 300) {
-            blackData = false;
-        }
-
-        if(blackData) {
-            if((row >= 95 && row <= 119) || (row >= 181 && row <= 205)) {
-                byte = 0xFF;
-            }
-        } else {
-            if(row >= (300 + 120) && row <= (300 + 180)) {
-                byte = 0xFF;
-            }
-        }
-        index++;
     }
+
+    if(index > 50) {
+        row++;
+        index = 1;
+    }
+
+    if(row > 300) {
+        blackData = false;
+    }
+
+    if(blackData) {
+        if((row >= 95 && row <= 119) || (row >= 181 && row <= 205)) {
+            byte = 0xFF;
+        }
+    } else {
+        if(row >= (300 + 120) && row <= (300 + 180)) {
+            byte = 0xFF;
+        }
+    }
+    index++;
+
     return byte;
 }
